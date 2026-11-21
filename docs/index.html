@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tactica — jeu tactique au tour par tour</title>
+<meta name="description" content="Tactica : construis ton royaume, recrute tes unités et affronte d'autres joueurs dans des combats tactiques façon Fire Emblem.">
+<link rel="icon" href="img/logo_titre.png">
+<style>
+  @font-face { font-family: "BoldPixels"; src: url("boldpixels.ttf") format("truetype"); font-display: swap; }
+  :root {
+    --nuit: #0b0e24; --nuit2: #141a3d; --cadre: #e8c25a; --or: #ffd970;
+    --texte: #e9e6f5; --doux: #a7a8c8; --vert: #8fe08f;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--nuit); color: var(--texte);
+    font-family: "BoldPixels", system-ui, sans-serif; font-size: 18px; line-height: 1.55;
+    -webkit-font-smoothing: none;
+  }
+  img { image-rendering: pixelated; max-width: 100%; display: block; }
+  a { color: var(--or); }
+
+  /* --- En-tête : le village en fond --- */
+  .hero {
+    position: relative; min-height: 92vh; display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 48px 20px 80px; overflow: hidden;
+  }
+  .hero::before {
+    content: ""; position: absolute; inset: -4%;
+    background: url("img/village.png") center / cover no-repeat;
+    image-rendering: pixelated; animation: derive 40s ease-in-out infinite alternate;
+  }
+  .hero::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(11,14,36,.45) 0%, rgba(11,14,36,.55) 55%, var(--nuit) 100%);
+  }
+  @keyframes derive { from { transform: scale(1.04) translateX(-1%); } to { transform: scale(1.1) translateX(1%); } }
+  .hero-contenu { position: relative; z-index: 1; max-width: 760px; }
+  .logo { width: min(560px, 90vw); margin: 0 auto 18px; filter: drop-shadow(0 6px 0 rgba(0,0,0,.45)); animation: flotte 3.5s ease-in-out infinite; }
+  @keyframes flotte { 50% { transform: translateY(-6px); } }
+  .accroche { font-size: clamp(20px, 2.6vw, 26px); margin: 0 0 30px; text-shadow: 0 2px 0 #000; }
+
+  .bouton {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-family: inherit; font-size: 26px; color: #2a1a05; text-decoration: none;
+    background: linear-gradient(180deg, #ffe48f, #e8b33e); border: 3px solid #5a3a0a;
+    border-radius: 10px; padding: 14px 34px; box-shadow: 0 5px 0 #5a3a0a, 0 10px 24px rgba(0,0,0,.5);
+    transition: transform .08s, box-shadow .08s;
+  }
+  .bouton:hover { transform: translateY(-2px); box-shadow: 0 7px 0 #5a3a0a, 0 14px 28px rgba(0,0,0,.55); }
+  .bouton:active { transform: translateY(3px); box-shadow: 0 2px 0 #5a3a0a; }
+  .bouton svg { width: 26px; height: 26px; }
+  .sous-bouton { margin-top: 14px; color: var(--doux); font-size: 16px; text-shadow: 0 1px 0 #000; }
+
+  /* --- Sections --- */
+  section { max-width: 1080px; margin: 0 auto; padding: 70px 22px; }
+  h2 { font-size: clamp(28px, 3.4vw, 38px); color: var(--or); margin: 0 0 10px; text-shadow: 0 3px 0 #000; font-weight: normal; }
+  .intro { color: var(--doux); margin: 0 0 36px; max-width: 680px; }
+
+  .cadre {
+    background: var(--nuit2); border: 3px solid var(--cadre); border-radius: 12px;
+    box-shadow: 0 6px 0 rgba(0,0,0,.4);
+  }
+
+  .atouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+  .atout { padding: 22px; }
+  .atout h3 { margin: 0 0 6px; font-size: 22px; color: var(--or); font-weight: normal; }
+  .atout p { margin: 0; color: var(--doux); font-size: 17px; }
+
+  /* Bâtiments : intérieur + PNJ */
+  .lieux { display: grid; gap: 26px; }
+  .lieu { position: relative; overflow: hidden; display: grid; grid-template-columns: 1fr; }
+  .lieu .interieur { width: 100%; aspect-ratio: 341 / 192; object-fit: cover; }
+  .lieu .pnj {
+    position: absolute; left: 18px; bottom: 18px; width: clamp(110px, 18vw, 180px);
+    border: 3px solid var(--cadre); border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.6);
+  }
+  .bulle {
+    position: absolute; right: 18px; bottom: 18px; max-width: min(380px, 55%);
+    background: #f6ecd2; color: #2a1d10; border: 3px solid #5a3a0a; border-radius: 10px;
+    padding: 12px 16px; font-size: 16px; box-shadow: 0 5px 0 rgba(0,0,0,.35);
+  }
+  .bulle b { display: block; color: #7a3a10; font-weight: normal; margin-bottom: 2px; }
+
+  .carte { display: grid; grid-template-columns: 1.2fr 1fr; gap: 28px; align-items: center; }
+  .carte img { border-radius: 10px; }
+  @media (max-width: 760px) { .carte { grid-template-columns: 1fr; } .bulle { position: static; max-width: none; margin: 12px; } }
+
+  /* Installation */
+  .etapes { counter-reset: n; list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+  .etapes li { counter-increment: n; position: relative; padding: 16px 18px 16px 70px; }
+  .etapes li::before {
+    content: counter(n); position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center;
+    background: var(--cadre); color: #2a1a05; font-size: 22px;
+  }
+  .etapes small { display: block; color: var(--doux); font-size: 15px; }
+  .config { margin-top: 22px; color: var(--doux); font-size: 16px; }
+
+  footer { text-align: center; color: var(--doux); font-size: 14px; padding: 40px 20px 50px; border-top: 2px solid #232a5c; }
+  footer p { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-contenu">
+    <img class="logo" src="img/logo_titre.png" alt="Tactica">
+    <p class="accroche">Construis ton royaume, recrute tes unités et mène-les dans des combats tactiques au tour par tour.</p>
+    <a class="bouton" id="telecharger" href="https://github.com/PipiMan-rgb/tactica/releases/latest/download/Tactica.exe">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M12 3v12M6 10l6 6 6-6M4 21h16"/></svg>
+      Télécharger pour Windows
+    </a>
+    <p class="sous-bouton">Gratuit — <span id="version">version bêta</span> — se met à jour tout seul</p>
+  </div>
+</header>
+
+<section>
+  <h2>Le jeu</h2>
+  <p class="intro">Des combats sur quadrillage façon Fire Emblem, un village à faire grandir et d'autres joueurs à affronter.</p>
+  <div class="atouts">
+    <div class="atout cadre"><h3>Combats tactiques</h3><p>Déplace tes unités case par case, profite du terrain et du triangle des armes. Chaque coup compte.</p></div>
+    <div class="atout cadre"><h3>Ton royaume</h3><p>Scierie, carrière, mine, forge, marché… Récolte, construis et améliore ton château.</p></div>
+    <div class="atout cadre"><h3>Recrute et équipe</h3><p>Des recrues chaque jour à la taverne, de l'équipement à forger et des vétérans à promouvoir.</p></div>
+    <div class="atout cadre"><h3>Joueurs contre joueurs</h3><p>Arène classée, duels en direct et raids sur les royaumes voisins.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Entre dans le village</h2>
+  <p class="intro">Chaque bâtiment a son intérieur, son ambiance et son habitant.</p>
+  <div class="lieux">
+    <div class="lieu cadre">
+      <img class="interieur" src="img/int_taverne.png" alt="Intérieur de la taverne">
+      <img class="pnj" src="img/pnj_taverne.png" alt="Rosie, la tavernière">
+      <div class="bulle"><b>Rosie, la tavernière</b>« Bienvenue à la taverne ! J'ai de nouvelles recrues pour toi aujourd'hui. »</div>
+    </div>
+    <div class="lieu cadre">
+      <img class="interieur" src="img/int_forge.png" alt="Intérieur de la forge">
+      <img class="pnj" src="img/pnj_forge.png" alt="Borg, le forgeron">
+      <div class="bulle"><b>Borg, le forgeron</b>« Ton équipement a besoin d'un coup de marteau ? Pose ça là. »</div>
+    </div>
+    <div class="lieu cadre">
+      <img class="interieur" src="img/int_donjon.png" alt="Entrée des donjons">
+      <img class="pnj" src="img/pnj_donjon.png" alt="Kenshin, le vieux bretteur">
+      <div class="bulle"><b>Kenshin, le vieux bretteur</b>« Un bras m'a suffi pour revenir de là-dessous. À ton tour. »</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="carte">
+    <img class="cadre" src="img/carte_monde.png" alt="Carte du monde">
+    <div>
+      <h2>Pars à l'aventure</h2>
+      <p class="intro" style="margin:0">Passe la porte du village : camps de bandits à nettoyer, donjons à explorer et royaumes voisins à piller. Mais garde un œil sur ta défense, les autres joueurs peuvent venir te rendre visite.</p>
+    </div>
+  </div>
+</section>
+
+<section id="installer">
+  <h2>Installer</h2>
+  <p class="intro">Pas d'installation : c'est un seul fichier à lancer.</p>
+  <ol class="etapes">
+    <li class="cadre">Clique sur « Télécharger pour Windows » et récupère <b>Tactica.exe</b>.</li>
+    <li class="cadre">Lance-le. <small>Windows peut afficher « Windows a protégé votre ordinateur » parce que le jeu est récent et pas signé : clique sur « Informations complémentaires » puis « Exécuter quand même ».</small></li>
+    <li class="cadre">Crée ton compte dans le jeu et choisis ton héros. <small>Les mises à jour se téléchargent toutes seules au lancement.</small></li>
+  </ol>
+  <p class="config">Windows 10 ou 11, 64 bits — connexion Internet nécessaire.</p>
+</section>
+
+<footer>
+  <p>Tactica — jeu en bêta, fait avec Godot.</p>
+  <p>Police BoldPixels (CC BY-SA 4.0). Musiques et sons libres de droits (OpenGameArt, Kenney, BigSoundBank). Images créées avec PixelLab.</p>
+</footer>
+
+<script>
+  // Affiche la version publiée (version.json du dépôt)
+  fetch("https://raw.githubusercontent.com/PipiMan-rgb/tactica/main/version.json")
+    .then(r => r.json())
+    .then(v => { if (v.version) document.getElementById("version").textContent = "version " + v.version; })
+    .catch(() => {});
+</script>
+</body>
+</html>
